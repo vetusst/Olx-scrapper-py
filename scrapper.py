@@ -16,7 +16,7 @@ from boto.s3.connection import S3Connection, Location
 
 # # Establishing connection
 boto.set_stream_logger('boto')
-s3 = S3Connection(os.environ['TOKEN_BOT'])
+s3 = S3Connection(os.environ['SECRET_BOT'])
 
 # rs = s3.get_all_buckets()
 # for bucket in rs:
