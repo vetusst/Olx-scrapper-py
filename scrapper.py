@@ -470,7 +470,7 @@ def getMessage():
 @server.route("/")
 def webhook():
     bot.remove_webhook()
-    bot.set_webhook(url='https://your_heroku_project.com/' + TOKEN_BOT)
+    bot.set_webhook(url='https://olx-flat-parser.herokuapp.com/' + TOKEN_BOT)
     return "!", 200
 
 
