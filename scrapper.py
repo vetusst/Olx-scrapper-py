@@ -11,8 +11,6 @@ from bs4 import BeautifulSoup as BS
 from flask import Flask, request
 import telebot
 from telebot import types
-import boto
-from boto.s3.connection import S3Connection, Location
 
 # # Establishing connection
 # boto.set_stream_logger('boto')
@@ -96,13 +94,6 @@ def grab_offers(process_msg):
     user = user_dict[process_msg.chat.id]
     pages_amount = user.pages_amount
     start_page = user.start_page
-    # total_pages = pages_total()
-    # user_dict[process_msg.chat.id].pages = {
-    #     'total_pages': total_pages,
-    #     'start_page': start_page,
-    #     'end_page': start_page + pages_amount,
-    #     'pages_amount': pages_amount,
-    # }
 
     last_page = start_page + pages_amount - 1
 
@@ -481,5 +472,3 @@ def webhook():
 
 if __name__ == "__main__":
     server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
-
-bot.polling()
