@@ -28,6 +28,7 @@ from boto.s3.connection import S3Connection, Location
 
 
 TOKEN_BOT = os.environ.get('SECRET_BOT')
+print(TOKEN_BOT)
 bot = telebot.TeleBot(TOKEN_BOT, parse_mode='html')
 server = Flask(__name__)
 
