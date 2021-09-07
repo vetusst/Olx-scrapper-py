@@ -14,11 +14,12 @@ from telebot import types
 from boto.s3.connection import S3Connection, Location
 
 # Establishing connection   
-s3 = S3Connection(os.environ[''], os.environ[''])
+s3 = S3Connection(os.environ['TOKEN_BOT'])
 rs = s3.get_all_buckets()
 for bucket in rs:
     print(f'Name:{bucket.name}')
     print(f'Keys: {bucket.list()}')
+    
 
 # s3.create_bucket('HEROKU_ENV_VARS_OLX_BOT', location=Location.EUCentral1)
 
