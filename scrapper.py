@@ -11,14 +11,17 @@ from bs4 import BeautifulSoup as BS
 from flask import Flask, request
 import telebot
 from telebot import types
+import boto
 from boto.s3.connection import S3Connection, Location
 
-# Establishing connection   
+# # Establishing connection
+boto.set_stream_logger('boto')
 s3 = S3Connection(os.environ['TOKEN_BOT'])
-rs = s3.get_all_buckets()
-for bucket in rs:
-    print(f'Name:{bucket.name}')
-    print(f'Keys: {bucket.list()}')
+
+# rs = s3.get_all_buckets()
+# for bucket in rs:
+#     print(f'Name:{bucket.name}')
+#     print(f'Keys: {bucket.list()}')
     
 
 # s3.create_bucket('HEROKU_ENV_VARS_OLX_BOT', location=Location.EUCentral1)
@@ -478,4 +481,4 @@ def webhook():
 if __name__ == "__main__":
     server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
 
-# bot.polling()
+bot.polling()
