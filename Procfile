@@ -1,1 +1,1 @@
-worker: python scrapper.py
+web: python scrapper.py
