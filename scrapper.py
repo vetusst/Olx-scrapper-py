@@ -15,8 +15,8 @@ import boto
 from boto.s3.connection import S3Connection, Location
 
 # # Establishing connection
-boto.set_stream_logger('boto')
-s3 = S3Connection(os.environ['SECRET_BOT'])
+# boto.set_stream_logger('boto')
+# s3 = S3Connection(os.environ['SECRET_BOT'])
 
 # rs = s3.get_all_buckets()
 # for bucket in rs:
@@ -27,7 +27,7 @@ s3 = S3Connection(os.environ['SECRET_BOT'])
 # s3.create_bucket('HEROKU_ENV_VARS_OLX_BOT', location=Location.EUCentral1)
 
 
-TOKEN_BOT = 'soon'
+TOKEN_BOT = os.environ.get('SECRET_BOT')
 bot = telebot.TeleBot(TOKEN_BOT, parse_mode='html')
 server = Flask(__name__)
 
