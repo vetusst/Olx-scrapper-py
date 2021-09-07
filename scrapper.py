@@ -12,21 +12,7 @@ from flask import Flask, request
 import telebot
 from telebot import types
 
-# # Establishing connection
-# boto.set_stream_logger('boto')
-# s3 = S3Connection(os.environ['SECRET_BOT'])
-
-# rs = s3.get_all_buckets()
-# for bucket in rs:
-#     print(f'Name:{bucket.name}')
-#     print(f'Keys: {bucket.list()}')
-    
-
-# s3.create_bucket('HEROKU_ENV_VARS_OLX_BOT', location=Location.EUCentral1)
-
-
 TOKEN_BOT = os.environ.get('SECRET_BOT')
-print(TOKEN_BOT)
 bot = telebot.TeleBot(TOKEN_BOT, parse_mode='html')
 server = Flask(__name__)
 
@@ -53,7 +39,10 @@ class User:
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "Use /offers command to get offers")
+    user_dict[message.chat.id] = User()
+    user_dict[message.chat.id].message_id = message.chat.id
+    start_msg = bot.send_message(message.chat.id, '<b> Бот для парсинга объявлений с OLX.pl</b>\n----------------------------\n Перманентные параметры:\n  -Город: Варшава\n  -Команты: 3\n  -Районы: Ursynów, Mokotów, Wola, Śródmieście\n\n<i>Для начала парсинга объявлений: /offers</i>')
+    user_dict[message.chat.id].start_msg = start_msg
 
 
 def grab(link):
@@ -205,10 +194,10 @@ def main(process_msg):
 
 @bot.message_handler(commands=['offers'])
 def info_grabbing(message):
-    user_dict[message.chat.id] = User()
-    user_dict[message.chat.id].message_id = message.chat.id
+    try: bot.delete_message(user_dict[message.chat.id].start_msg.chat.id, user_dict[message.chat.id].start_msg.message_id)
+    except: pass
 
-    desc_str = f'<b>Выбрать параметры запуска:</b>\n-----------------------\n<b>Дефолтные:</b> 3 страницы, начиная с первой (обычно это все объявления за последний день) \n\n <b>Кастомные:</b> можно выбрать начальную страницу и кол-во страниц от начальной \n\n <i> Общее кол-во страниц: </i>'
+    desc_str = f'<b>Выбрать параметры запуска:</b>\n-----------------------\n<b>Дефолтные:</b> 3 страницы, начиная с первой (обычно это все объявления за последний день) \n\n <b>Кастомные:</b> можно выбрать начальную страницу и кол-во страниц от начальной \n\n'
 
     mark_up_mode = types.InlineKeyboardMarkup()
     item1 = types.InlineKeyboardButton(
@@ -360,15 +349,13 @@ def start_callback(call):
             start_grabbing(call.message)
         if call.data == 'custom':
             custom_mode(call.message)
-
+            user_dict[call.message.chat.id].total_pages = pages_total()
         if call.data == 'pages':
             total_pages = user_dict[call.message.chat.id].total_pages
             param_pages_msg = bot.edit_message_text(
                 f'Введите <b>Начальную страницу:</b> и <b>Кол-во страниц:</b>\n------------------\nПример: "3 1" \n(3 - начальная страница, 1 - кол-во)\n------------------\n<i>Общее кол-во страниц: <b>{total_pages}</b>\nНачальная страница + кол-во страниц не должно превышать <b>{total_pages}</b></i>',
-                user_dict[
-                    call.message.chat.id].msg_mode.chat.id,
-                user_dict[
-                    call.message.chat.id].msg_mode.message_id,
+                user_dict[call.message.chat.id].msg_mode.chat.id,
+                user_dict[call.message.chat.id].msg_mode.message_id,
                 reply_markup=None)
             bot.register_next_step_handler(param_pages_msg, param_pages)
         if call.data == 'price':
@@ -422,14 +409,11 @@ def custom_mode(message):
         user.msg_mode.message_id,
         reply_markup=mark_up_custom)
 
-
 def param_pages(message):
-    print(message.text)
     if re.match(r"^\d{1,2}\s\d{1,2}$", message.text):
         start_page = int(message.text.split(' ')[0])
         pages_amount = int(message.text.split(' ')[1])
-        if start_page + pages_amount - \
-                1 <= int(user_dict[message.chat.id].total_pages):
+        if start_page + pages_amount - 1 <= int(user_dict[message.chat.id].total_pages):
             user_dict[message.chat.id].start_page = start_page
             user_dict[message.chat.id].pages_amount = pages_amount
 
@@ -467,8 +451,11 @@ def getMessage():
 def webhook():
     bot.remove_webhook()
     bot.set_webhook(url='https://olx-flat-parser.herokuapp.com/' + TOKEN_BOT)
-    return "!", 200
+    return "I AM BOT, GO TO TELEGRAM", 200
 
 
 if __name__ == "__main__":
     server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+
+
+bot.polling()
