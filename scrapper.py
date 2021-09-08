@@ -35,12 +35,16 @@ class User:
         self.start_page = 1
         self.pages_amount = 3
         self.max_price = 3250
+        self.rooms = 'three'
 
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    user_dict[message.chat.id] = User()
-    user_dict[message.chat.id].message_id = message.chat.id
+    try: bot.delete_message(user_dict[message.chat.id].msg_mode.chat.id, user_dict[message.chat.id].msg_mode.message_id)
+    except: pass
+    try: bot.delete_message(user_dict[message.chat.id].start_msg.chat.id, user_dict[message.chat.id].start_msg.message_id)
+    except: pass
+    if message.chat.id not in user_dict.keys(): user_dict[message.chat.id] = User()
     start_msg = bot.send_message(message.chat.id, '<b> Бот для парсинга объявлений с OLX.pl</b>\n----------------------------\n Перманентные параметры:\n  -Город: Варшава\n  -Команты: 3\n  -Районы: Ursynów, Mokotów, Wola, Śródmieście\n\n<i>Для начала парсинга объявлений: /offers</i>')
     user_dict[message.chat.id].start_msg = start_msg
 
@@ -69,9 +73,10 @@ def extractor(price_str, czynsz_str):
     return [price, czynsz if czynsz > 1 else 0]
 
 
-def pages_total():
+def pages_total(message):
+    rooms = user_dict[message.chat.id].rooms
     pages_total = grab(
-        f"https://www.olx.pl/nieruchomosci/mieszkania/wynajem/warszawa/?search%5Bfilter_enum_rooms%5D%5B0%5D=three")
+        f"https://www.olx.pl/nieruchomosci/mieszkania/wynajem/warszawa/?search%5Bfilter_enum_rooms%5D%5B0%5D={rooms}")
     last_page = pages_total.select('.pager')[0]
     last_page = last_page.find(
         'a', {'data-cy': "page-link-last"}).find('span').text
@@ -83,6 +88,7 @@ def grab_offers(process_msg):
     user = user_dict[process_msg.chat.id]
     pages_amount = user.pages_amount
     start_page = user.start_page
+    rooms = user.rooms
 
     last_page = start_page + pages_amount - 1
 
@@ -93,7 +99,7 @@ def grab_offers(process_msg):
             process_msg.message_id)
         print(f'Page number: {page_num}/{last_page}')
         html = grab(
-            f"https://www.olx.pl/nieruchomosci/mieszkania/wynajem/warszawa/?search%5Bfilter_enum_rooms%5D%5B0%5D=three&page={page_num}")
+            f"https://www.olx.pl/nieruchomosci/mieszkania/wynajem/warszawa/?search%5Bfilter_enum_rooms%5D%5B0%5D={rooms}&page={page_num}")
         items = html.select(".wrap")
 
         for elem in items:
@@ -182,7 +188,7 @@ def grab_offer_content(offer_dict, process_msg):
             print(item.link)
             print(traceback.format_exc())
             continue
-
+    print(f'Offers scanned, the number of mathing offers: {len(proper_offers)}')
     return proper_offers
 
 
@@ -194,8 +200,11 @@ def main(process_msg):
 
 @bot.message_handler(commands=['offers'])
 def info_grabbing(message):
+    try: bot.delete_message(user_dict[message.chat.id].msg_mode.chat.id, user_dict[message.chat.id].msg_mode.message_id)
+    except: pass
     try: bot.delete_message(user_dict[message.chat.id].start_msg.chat.id, user_dict[message.chat.id].start_msg.message_id)
     except: pass
+    if message.chat.id not in user_dict.keys(): user_dict[message.chat.id] = User()
 
     desc_str = f'<b>Выбрать параметры запуска:</b>\n-----------------------\n<b>Дефолтные:</b> 3 страницы, начиная с первой (обычно это все объявления за последний день) \n\n <b>Кастомные:</b> можно выбрать начальную страницу и кол-во страниц от начальной \n\n'
 
@@ -227,6 +236,7 @@ def start_grabbing(message, custom_mode=False):
         user.start_page = 1
         user.pages_amount = 3
         user.max_price = 3250
+        user.rooms = 'three'
     # Getting offers list
     offers_dict = main(process_msg)
     # Turning on slider
@@ -349,11 +359,11 @@ def start_callback(call):
             start_grabbing(call.message)
         if call.data == 'custom':
             custom_mode(call.message)
-            user_dict[call.message.chat.id].total_pages = pages_total()
+            user_dict[call.message.chat.id].total_pages = pages_total(call.message)
         if call.data == 'pages':
             total_pages = user_dict[call.message.chat.id].total_pages
             param_pages_msg = bot.edit_message_text(
-                f'Введите <b>Начальную страницу:</b> и <b>Кол-во страниц:</b>\n------------------\nПример: "3 1" \n(3 - начальная страница, 1 - кол-во)\n------------------\n<i>Общее кол-во страниц: <b>{total_pages}</b>\nНачальная страница + кол-во страниц не должно превышать <b>{total_pages}</b></i>',
+                f'Введите <b>Начальную страницу:</b> и <b>Кол-во страниц:</b>\n------------------\nПример: "3 1" \n(3 - начальная страница, 1 - кол-во)\n------------------\n<i>Страницы отсортированы по дате добавления,\n   на первой самые новые - на последней самые старые </i>\n------------------\n<i>Общее кол-во страниц: <b>{total_pages}</b>\nНачальная страница + кол-во страниц не должно превышать <b>{total_pages}</b></i>',
                 user_dict[call.message.chat.id].msg_mode.chat.id,
                 user_dict[call.message.chat.id].msg_mode.message_id,
                 reply_markup=None)
@@ -364,6 +374,11 @@ def start_callback(call):
                                                     user_dict[call.message.chat.id].msg_mode.message_id,
                                                     reply_markup=None)
             bot.register_next_step_handler(param_pages_msg, param_price)
+        if call.data == 'rooms':
+            param_rooms(call.message)
+        if call.data in ['one', 'two', 'three', 'four']:
+            user_dict[call.message.chat.id].rooms = call.data
+            custom_mode(call.message)
         if call.data == 'go_custom':
             start_grabbing(call.message, True)
         if call.data == 'back_main':
@@ -382,24 +397,27 @@ def start_callback(call):
 
 def custom_mode(message):
     user = user_dict[message.chat.id]
-
+    words_to_num = {'one': 1, 'two': 2, 'three': 3, '4': 4}
     mark_up_custom = types.InlineKeyboardMarkup(row_width=3)
     item1 = types.InlineKeyboardButton(
         text='Edit Pages', callback_data='pages')
     item2 = types.InlineKeyboardButton(
         text='Edit Price', callback_data='price')
     item3 = types.InlineKeyboardButton(
-        text='Start grabbing', callback_data='go_custom')
+        text='Edit rooms', callback_data='rooms')
     item4 = types.InlineKeyboardButton(
+        text='Start grabbing', callback_data='go_custom')
+    item5 = types.InlineKeyboardButton(
         text=f'↩', callback_data=f'back_main')
-    mark_up_custom.add(item1, item2, item3, item4)
+    mark_up_custom.add(item1, item2, item3, item4, item5)
 
     info_str = f'''
     <b>Установленные параметры:</b>
     -----------------------------
     Начальная страница: <b>{user.start_page}</b>\n
     Кол-во страниц: <b>{user.pages_amount}</b>\n
-    Максимальная цена: <b>{user.max_price}</b>\n\n
+    Максимальная цена: <b>{user.max_price}</b>\n
+    Кол-во комнат: <b>{words_to_num[user.rooms]}</b>\n\n
     <i>Нажмите "Start grabbing" чтобы запустить парсер с этими параметрами</i>
     '''
 
@@ -439,6 +457,23 @@ def param_price(message):
     time.sleep(1)
     custom_mode(message)
 
+def param_rooms(message):
+    mark_up_rooms = types.InlineKeyboardMarkup()
+    item1 = types.InlineKeyboardButton(
+        text='1', callback_data='one')
+    item2 = types.InlineKeyboardButton(
+        text='2', callback_data='two')
+    item3 = types.InlineKeyboardButton(
+        text='3', callback_data='three')
+    item4 = types.InlineKeyboardButton(
+        text='4 and more', callback_data='four')
+    mark_up_rooms.add(item1, item2, item3, item4)
+
+    bot.edit_message_text('Выберите <b>Кол-во комнат</b>:',
+                                            user_dict[message.chat.id].msg_mode.chat.id,
+                                            user_dict[message.chat.id].msg_mode.message_id,
+                                            reply_markup=mark_up_rooms)
+
 @server.route('/' + TOKEN_BOT, methods=['POST'])
 def getMessage():
     json_string = request.get_data().decode('utf-8')
@@ -457,5 +492,4 @@ def webhook():
 if __name__ == "__main__":
     server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
 
-
-bot.polling()
+# bot.polling()
